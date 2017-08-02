@@ -14,14 +14,14 @@ import (
 	"sync"
 )
 
-type httpTunnel struct {
+type http11 struct {
 	addr    string
 	user    *url.Userinfo
 	forward Dialer
 }
 
 type httpConn struct {
-	*net.TCPConn
+	net.Conn
 	reader *bufio.Reader
 	req    *http.Request
 
@@ -71,28 +71,12 @@ func (c *httpConn) Read(p []byte) (int, error) {
 	return c.reader.Read(p)
 }
 
-func (c *httpConn) CloseRead() error {
-	return c.TCPConn.CloseRead()
-}
-
-func (c *httpConn) CloseWrite() error {
-	return c.TCPConn.CloseWrite()
-}
-
-func newHttpConn(conn *net.TCPConn, req *http.Request) *httpConn {
+func newHttpConn(conn net.Conn, req *http.Request) *httpConn {
 	return &httpConn{
-		TCPConn: conn,
-		reader:  bufio.NewReader(conn),
-		req:     req,
+		Conn:   conn,
+		reader: bufio.NewReader(conn),
+		req:    req,
 	}
-}
-
-func HttpTunnel(url *url.URL, forward Dialer) (Dialer, error) {
-	return &httpTunnel{
-		addr:    url.Host,
-		user:    url.User,
-		forward: forward,
-	}, nil
 }
 
 func basicAuth(username, password string) string {
@@ -100,7 +84,7 @@ func basicAuth(username, password string) string {
 	return base64.StdEncoding.EncodeToString([]byte(auth))
 }
 
-func (h *httpTunnel) Dial(network, addr string) (net.Conn, error) {
+func (h *http11) Dial(network, addr string) (net.Conn, error) {
 	conn, err := h.forward.Dial(network, h.addr)
 	if err != nil {
 		return nil, err
@@ -126,12 +110,12 @@ func (h *httpTunnel) Dial(network, addr string) (net.Conn, error) {
 		return nil, err
 	}
 
-	return newHttpConn(conn.(*net.TCPConn), req), nil
+	return newHttpConn(conn, req), nil
 }
 
 func init() {
 	registerDialerType("http", func(url *url.URL, forward Dialer) (Dialer, error) {
-		return &httpTunnel{
+		return &http11{
 			addr:    url.Host,
 			user:    url.User,
 			forward: forward,
