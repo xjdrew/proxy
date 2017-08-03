@@ -101,8 +101,10 @@ func (h *http11) Dial(network, addr string) (net.Conn, error) {
 		Header:     make(http.Header),
 	}
 
-	if password, ok := h.user.Password(); ok {
-		req.Header.Set("Proxy-Authorization", "Basic "+basicAuth(h.user.Username(), password))
+	if h.user != nil {
+		if password, ok := h.user.Password(); ok {
+			req.Header.Set("Proxy-Authorization", "Basic "+basicAuth(h.user.Username(), password))
+		}
 	}
 
 	if err = req.Write(conn); err != nil {
